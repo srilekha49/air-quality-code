@@ -1,0 +1,78 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.impute import SimpleImputer
+
+sns.set_theme(style="whitegrid")
+plt.rcParams['figure.figsize'] = (12, 6)
+
+def load_air_quality_data(file_path):
+    try:
+        df = pd.read_excel(file_path)
+        print("Data loaded successfully!")
+        print(f"Data shape: {df.shape}")
+        print("\nFirst 5 rows:")
+        print(df.head())
+        return df
+    except Exception as e:
+        print(f"Error loading file: {e}")
+        return None
+
+def clean_air_quality_data(df):
+    df = df.drop(columns=[col for col in df.columns if 'Unnamed' in col], errors='ignore')
+    
+    if 'Date' in df.columns and 'Time' in df.columns:
+        df['DateTime'] = pd.to_datetime(df['Date'].astype(str) + ' ' + df['Time'].astype(str))
+        df = df.drop(columns=['Date', 'Time'])
+        df = df.set_index('DateTime')
+    elif 'DateTime' in df.columns:
+        df['DateTime'] = pd.to_datetime(df['DateTime'])
+        df = df.set_index('DateTime')
+    
+    df[df < 0] = np.nan
+    
+    print(f"\nMissing values before cleaning:\n{df.isnull().sum()}")
+    
+    imputer = SimpleImputer(strategy='median')
+    df_imputed = pd.DataFrame(imputer.fit_transform(df), 
+                             columns=df.columns, 
+                             index=df.index)
+    
+    print(f"\nMissing values after cleaning:\n{df_imputed.isnull().sum()}")
+    return df_imputed
+
+def analyze_air_quality(df):
+    print("\nDescriptive Statistics:")
+    print(df.describe())
+    
+    print("\nCorrelation Matrix:")
+    corr_matrix = df.corr()
+    print(corr_matrix)
+    
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0, fmt=".2f")
+    plt.title('Air Quality Parameters Correlation')
+    plt.tight_layout()
+    plt.show()
+    
+    for column in df.columns:
+        if df[column].nunique() > 1:
+            plt.figure(figsize=(14, 6))
+            df[column].plot(title=f'{column} Time Series', color='royalblue')
+            plt.ylabel('Concentration')
+            plt.xlabel('Date')
+            plt.tight_layout()
+            plt.show()
+
+if _name_ == "_main_":
+    file_path = r"C:\Users\Deepu Laptop\Desktop\AirQualityUCI.xlsx"
+    
+    air_quality_df = load_air_quality_data(file_path)
+    if air_quality_df is None:
+        print("\nCould not load data file. Please check the path.")
+        exit()
+    
+    cleaned_df = clean_air_quality_data(air_quality_df)
+    
+    analyze_air_quality(cleaned_df)
